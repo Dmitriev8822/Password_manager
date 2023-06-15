@@ -1,7 +1,8 @@
 import sys
 from PyQt5.QtWidgets import QApplication, QMainWindow, QWidget, QMessageBox, QAction
 from PyQt5 import uic
-from connect_db import *
+from connect_db import Сonnect_DB_users, Сonnect_DB_data
+from pyperclip import copy
 
 
 def except_hook(cls, exception, traceback):
@@ -14,16 +15,59 @@ class MainClass(QMainWindow):
 
         uic.loadUi('data/ui/main.ui', self)
 
-        # PAGE 1
+        self.user_active_id = None
+        self.update_list()
+
         self.btn_page_1.clicked.connect(lambda: self.stackedWidget.setCurrentWidget(self.page_1))
-
-        # PAGE 2
         self.btn_page_2.clicked.connect(lambda: self.stackedWidget.setCurrentWidget(self.page_2))
-
-        # PAGE 3
         self.btn_page_3.clicked.connect(lambda: self.stackedWidget.setCurrentWidget(self.page_3))
 
-        self.btn_printer.clicked.connect(lambda: print(self.note_name_text.toPlainText(), self.login_text.toPlainText(), self.password_text.toPlainText(), sep='\n'))
+        self.btn_page_1.clicked.connect(self.update_list)
+        self.btn_new_entry.clicked.connect(self.new_entry)
+        self.listWidget.itemClicked.connect(self.lw_clicked)
+
+        self.copy_note_name.clicked.connect(lambda x: copy(self.note_name_out.toPlainText()))
+        self.copy_login.clicked.connect(lambda x: copy(self.login_out.toPlainText()))
+        self.copy_password.clicked.connect(lambda x: copy(self.password_out.toPlainText()))
+
+    def lw_clicked(self, event):
+        title = event.text()
+        login, password = db_data.get_data(self.user_active_id, title)[0]
+        self.note_name_out.setText(title)
+        self.login_out.setText(login)
+        self.password_out.setText(password)
+
+    def update_list(self):
+        self.listWidget.clear()
+        data = db_data.get_titles(self.user_active_id)
+        for el in data:
+            self.listWidget.addItem(el[0])
+
+    def new_entry(self):
+        title = self.note_name_text.toPlainText()
+        login = self.login_text.toPlainText()
+        password = self.password_text.toPlainText()
+
+        result = db_data.new_entry(self.user_active_id, title, login, password)
+
+        if result == 1:
+            self.message(f'Title: <{title}> is already taken.')
+        else:
+            self.message(f'All OK!', typee=0)
+
+    def user_info(self):
+        print(db_users.user_info(self.user_active_id))
+
+    def message(self, text, typee=1):
+        msg = QMessageBox()
+        if typee:
+            msg.setInformativeText(text)
+            msg.setWindowTitle("Error")
+        elif typee == 0:
+            msg.setInformativeText(text)
+            msg.setWindowTitle("Notice")
+        msg.exec_()
+
 
 
 class WinSingUp(QWidget):
@@ -88,6 +132,8 @@ class WinSingIn(QWidget):
 
         uic.loadUi('data/ui/sign_in.ui', self)
 
+        self.user_active = None
+
         self.login_text.setText('')
         self.password_text.setText('')
 
@@ -111,22 +157,25 @@ class WinSingIn(QWidget):
         result = db_users.check_user(login, password)
 
         if result == 0:
-            self.start_app()
+            self.start_app(login)
         elif result == 1:
             self.message('Incorrect login.')
         elif result == 2:
             self.message('Incorrect password.')
 
-    def start_app(self):
+    def start_app(self, login):
+        user_id = db_users.take_id(login)
+        mainWin.user_active_id = user_id
+        db_users.con.close() # break connection with database
         self.close()
         mainWin.show()
 
-    def message(self, text, type=1):
+    def message(self, text, typee=1):
         msg = QMessageBox()
-        if type:
+        if typee:
             msg.setInformativeText(text)
             msg.setWindowTitle("Error")
-        elif type == 0:
+        elif typee == 0:
             msg.setInformativeText(text)
             msg.setWindowTitle("Notice")
         msg.exec_()
@@ -136,6 +185,7 @@ class WinSingIn(QWidget):
 
 if __name__ == '__main__':
     db_users = Сonnect_DB_users()
+    db_data = Сonnect_DB_data()
 
     app = QApplication(sys.argv)
 
