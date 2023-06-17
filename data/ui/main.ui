@@ -67,7 +67,7 @@
         <widget class="QFrame" name="frame_left_menu">
          <property name="minimumSize">
           <size>
-           <width>70</width>
+           <width>100</width>
            <height>0</height>
           </size>
          </property>
